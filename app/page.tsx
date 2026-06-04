@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase Client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type Entry = {
   id: string;
@@ -21,10 +27,8 @@ const MONTHS = [
   { value: '09', label: 'September' }, { value: '10', label: 'October' },
   { value: '11', label: 'November' }, { value: '12', label: 'December' }
 ];
-
 const YEARS = ['2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
-// Converted 2025 Data (You can add the missing ones manually in the UI later!)
 const PREFILLED_DATA = [
   { monthId: '2025-01', date: '2025-01-01', earnedFrom: 'Office Salary', amount: 42000, earnedBy: 'Masum', note: '' },
   { monthId: '2025-01', date: '2025-01-01', earnedFrom: 'School Salary', amount: 18000, earnedBy: 'Toyeeba', note: '' },
@@ -144,25 +148,42 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState('01');
 
   useEffect(() => {
-    const saved = localStorage.getItem('income-entries-v3'); 
-    if (saved) {
-      setEntries(JSON.parse(saved));
-    } else {
-      const initializedData = PREFILLED_DATA.map((entry) => ({
-        ...entry,
-        id: crypto.randomUUID(),
-        earnedBy: entry.earnedBy as 'Masum' | 'Toyeeba' | ''
-      }));
-      setEntries(initializedData);
-    }
-    setIsLoaded(true);
-  }, []);
+    const initDatabase = async () => {
+      // 1. Check if DB has data
+      const { data: existingData } = await supabase.from('income_entries').select('id').limit(1);
+      
+      // 2. If completely empty, push the prefilled data up to the cloud!
+      if (existingData && existingData.length === 0) {
+        const dbFormattedPreFill = PREFILLED_DATA.map(e => ({
+          month_id: e.monthId,
+          date: e.date,
+          earned_from: e.earnedFrom,
+          amount: e.amount,
+          earned_by: e.earnedBy,
+          note: e.note
+        }));
+        await supabase.from('income_entries').insert(dbFormattedPreFill);
+      }
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('income-entries-v3', JSON.stringify(entries));
-    }
-  }, [entries, isLoaded]);
+      // 3. Fetch all live data from Supabase
+      const { data } = await supabase.from('income_entries').select('*');
+      if (data) {
+        const formattedData = data.map((item: any) => ({
+          id: item.id,
+          monthId: item.month_id,
+          date: item.date,
+          earnedFrom: item.earned_from,
+          amount: Number(item.amount),
+          earnedBy: item.earned_by,
+          note: item.note
+        }));
+        setEntries(formattedData);
+      }
+      setIsLoaded(true);
+    };
+
+    initDatabase();
+  }, []);
 
   const currentMonthId = `${selectedYear}-${selectedMonth}`;
   const currentViewEntries = entries.filter(entry => entry.monthId === currentMonthId);
@@ -175,43 +196,72 @@ export default function Dashboard() {
     const amount = Number(entry.amount) || 0;
     if (entry.earnedBy === 'Masum') runningM += amount;
     if (entry.earnedBy === 'Toyeeba') runningT += amount;
-
-    return {
-      ...entry,
-      runningM,
-      runningT,
-      runningTotal: runningM + runningT
-    };
+    return { ...entry, runningM, runningT, runningTotal: runningM + runningT };
   });
 
-  const addRow = () => {
+  const addRow = async () => {
     const defaultDate = `${currentMonthId}-01`;
-    setEntries([
-      ...entries, 
-      { id: crypto.randomUUID(), monthId: currentMonthId, date: defaultDate, earnedFrom: '', amount: 0, earnedBy: '', note: '' }
-    ]);
+    const newDbEntry = { month_id: currentMonthId, date: defaultDate, earned_from: '', amount: 0, earned_by: '', note: '' };
+    
+    // Save to Cloud instantly
+    const { data } = await supabase.from('income_entries').insert([newDbEntry]).select();
+    
+    if (data && data[0]) {
+      const inserted = data[0];
+      setEntries([
+        ...entries, 
+        { 
+          id: inserted.id, 
+          monthId: inserted.month_id, 
+          date: inserted.date, 
+          earnedFrom: inserted.earned_from, 
+          amount: Number(inserted.amount), 
+          earnedBy: inserted.earned_by, 
+          note: inserted.note 
+        }
+      ]);
+    }
   };
 
-  const deleteRow = (id: string) => setEntries(entries.filter(entry => entry.id !== id));
+  const deleteRow = async (id: string) => {
+    setEntries(entries.filter(entry => entry.id !== id));
+    await supabase.from('income_entries').delete().eq('id', id); // Delete from cloud
+  };
 
-  const updateEntry = (id: string, field: keyof Entry, value: string | number) => {
+  // Handles updating the local UI instantly while you type
+  const handleLocalChange = (id: string, field: keyof Entry, value: string | number) => {
     setEntries(entries.map(entry => {
       if (entry.id === id) {
         const updatedEntry = { ...entry, [field]: value };
-        
-        // --- THIS IS THE MAGIC TRICK ---
-        // If the date is changed, automatically update the hidden monthId!
         if (field === 'date' && typeof value === 'string' && value.length >= 7) {
           updatedEntry.monthId = value.substring(0, 7);
         }
-        
         return updatedEntry;
       }
       return entry;
     }));
   };
 
-  if (!isLoaded) return <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">Loading Data...</div>;
+  // Saves to the cloud the moment you click away from the input (onBlur)
+  const saveToCloud = async (id: string, field: keyof Entry, value: string | number) => {
+    const dbFieldMap: Record<string, string> = {
+      earnedFrom: 'earned_from',
+      amount: 'amount',
+      earnedBy: 'earned_by',
+      note: 'note',
+      date: 'date',
+      monthId: 'month_id'
+    };
+
+    const updatePayload: any = { [dbFieldMap[field]]: value };
+    if (field === 'date' && typeof value === 'string' && value.length >= 7) {
+      updatePayload.month_id = value.substring(0, 7);
+    }
+
+    await supabase.from('income_entries').update(updatePayload).eq('id', id);
+  };
+
+  if (!isLoaded) return <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center font-semibold text-lg text-blue-600">Syncing with Cloud Database...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 text-gray-800">
@@ -300,7 +350,8 @@ export default function Dashboard() {
                         <input
                           type="date"
                           value={entry.date || ''}
-                          onChange={(e) => updateEntry(entry.id, 'date', e.target.value)}
+                          onChange={(e) => handleLocalChange(entry.id, 'date', e.target.value)}
+                          onBlur={(e) => saveToCloud(entry.id, 'date', e.target.value)}
                           className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
                       </td>
@@ -308,7 +359,8 @@ export default function Dashboard() {
                         <input
                           type="text"
                           value={entry.earnedFrom}
-                          onChange={(e) => updateEntry(entry.id, 'earnedFrom', e.target.value)}
+                          onChange={(e) => handleLocalChange(entry.id, 'earnedFrom', e.target.value)}
+                          onBlur={(e) => saveToCloud(entry.id, 'earnedFrom', e.target.value)}
                           placeholder="Project name..."
                           className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
@@ -317,7 +369,8 @@ export default function Dashboard() {
                         <input
                           type="number"
                           value={entry.amount || ''}
-                          onChange={(e) => updateEntry(entry.id, 'amount', Number(e.target.value))}
+                          onChange={(e) => handleLocalChange(entry.id, 'amount', Number(e.target.value))}
+                          onBlur={(e) => saveToCloud(entry.id, 'amount', Number(e.target.value))}
                           placeholder="0"
                           className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
@@ -325,7 +378,10 @@ export default function Dashboard() {
                       <td className="p-2">
                         <select
                           value={entry.earnedBy}
-                          onChange={(e) => updateEntry(entry.id, 'earnedBy', e.target.value)}
+                          onChange={(e) => {
+                            handleLocalChange(entry.id, 'earnedBy', e.target.value);
+                            saveToCloud(entry.id, 'earnedBy', e.target.value);
+                          }}
                           className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
                         >
                           <option value="" disabled>Select...</option>
@@ -337,7 +393,8 @@ export default function Dashboard() {
                         <input
                           type="text"
                           value={entry.note}
-                          onChange={(e) => updateEntry(entry.id, 'note', e.target.value)}
+                          onChange={(e) => handleLocalChange(entry.id, 'note', e.target.value)}
+                          onBlur={(e) => saveToCloud(entry.id, 'note', e.target.value)}
                           placeholder="Notes..."
                           className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
