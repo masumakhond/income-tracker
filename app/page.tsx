@@ -1,33 +1,48 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar } from 'lucide-react';
+import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar, Download, LogOut } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import {
+  type Entry,
+  MONTHS,
+  YEARS,
+  getLastMonthYearMonth,
+  buildRunningTotals,
+} from '@/lib/income';
+import { downloadMonthPdf, downloadYearPdf } from '@/lib/pdf';
 
-// Initialize Supabase Client
+// Initialize Supabase Client (supports Vercel integration key name)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+const STORAGE_KEY = 'income-entries-v3';
 
-type Entry = {
-  id: string;
-  monthId: string;
-  date: string;
-  earnedFrom: string;
-  amount: number;
-  earnedBy: 'Masum' | 'Toyeeba' | '';
-  note: string;
-};
+function formatDbError(error: { message: string; code?: string; details?: string }) {
+  return [error.message, error.details, error.code].filter(Boolean).join(' — ');
+}
 
-const MONTHS = [
-  { value: '01', label: 'January' }, { value: '02', label: 'February' },
-  { value: '03', label: 'March' }, { value: '04', label: 'April' },
-  { value: '05', label: 'May' }, { value: '06', label: 'June' },
-  { value: '07', label: 'July' }, { value: '08', label: 'August' },
-  { value: '09', label: 'September' }, { value: '10', label: 'October' },
-  { value: '11', label: 'November' }, { value: '12', label: 'December' }
-];
-const YEARS = ['2024', '2025', '2026', '2027', '2028', '2029', '2030'];
+function rowToEntry(item: Record<string, unknown>): Entry {
+  return {
+    id: String(item.id),
+    monthId: String(item.month_id),
+    date: String(item.date).slice(0, 10),
+    earnedFrom: String(item.earned_from ?? ''),
+    amount: Number(item.amount) || 0,
+    earnedBy: (item.earned_by as Entry['earnedBy']) ?? '',
+    note: String(item.note ?? ''),
+  };
+}
+
+function prefilledAsEntries() {
+  return PREFILLED_DATA.map((entry) => ({
+    ...entry,
+    id: crypto.randomUUID(),
+    earnedBy: entry.earnedBy as Entry['earnedBy'],
+  }));
+}
 
 const PREFILLED_DATA = [
   { monthId: '2025-01', date: '2025-01-01', earnedFrom: 'Office Salary', amount: 42000, earnedBy: 'Masum', note: '' },
@@ -143,41 +158,66 @@ const PREFILLED_DATA = [
 export default function Dashboard() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  
-  const [selectedYear, setSelectedYear] = useState('2025');
-  const [selectedMonth, setSelectedMonth] = useState('01');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [usingLocalFallback, setUsingLocalFallback] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  const lastMonth = getLastMonthYearMonth();
+  const [selectedYear, setSelectedYear] = useState(() => lastMonth.year);
+  const [selectedMonth, setSelectedMonth] = useState(() => lastMonth.month);
+
+  const persistLocal = (nextEntries: Entry[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextEntries));
+  };
 
   useEffect(() => {
     const initDatabase = async () => {
-      // 1. Check if DB has data
-      const { data: existingData } = await supabase.from('income_entries').select('id').limit(1);
-      
-      // 2. If completely empty, push the prefilled data up to the cloud!
-      if (existingData && existingData.length === 0) {
-        const dbFormattedPreFill = PREFILLED_DATA.map(e => ({
+      const { data: existingData, error: countError } = await supabase
+        .from('income_entries')
+        .select('id')
+        .limit(1);
+
+      if (countError) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        setEntries(saved ? JSON.parse(saved) : prefilledAsEntries());
+        setUsingLocalFallback(true);
+        setSyncError(`Cloud sync unavailable: ${formatDbError(countError)}`);
+        setIsLoaded(true);
+        return;
+      }
+
+      if (!existingData?.length) {
+        const dbFormattedPreFill = PREFILLED_DATA.map((e) => ({
           month_id: e.monthId,
           date: e.date,
           earned_from: e.earnedFrom,
           amount: e.amount,
           earned_by: e.earnedBy,
-          note: e.note
+          note: e.note,
         }));
-        await supabase.from('income_entries').insert(dbFormattedPreFill);
+        const { error: seedError } = await supabase
+          .from('income_entries')
+          .insert(dbFormattedPreFill);
+        if (seedError) {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          setEntries(saved ? JSON.parse(saved) : prefilledAsEntries());
+          setUsingLocalFallback(true);
+          setSyncError(`Could not seed cloud database: ${formatDbError(seedError)}`);
+          setIsLoaded(true);
+          return;
+        }
       }
 
-      // 3. Fetch all live data from Supabase
-      const { data } = await supabase.from('income_entries').select('*');
-      if (data) {
-        const formattedData = data.map((item: any) => ({
-          id: item.id,
-          monthId: item.month_id,
-          date: item.date,
-          earnedFrom: item.earned_from,
-          amount: Number(item.amount),
-          earnedBy: item.earned_by,
-          note: item.note
-        }));
+      const { data, error: fetchError } = await supabase.from('income_entries').select('*');
+      if (fetchError) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        setEntries(saved ? JSON.parse(saved) : prefilledAsEntries());
+        setUsingLocalFallback(true);
+        setSyncError(`Could not load cloud data: ${formatDbError(fetchError)}`);
+      } else if (data) {
+        const formattedData = data.map((item) => rowToEntry(item as Record<string, unknown>));
         setEntries(formattedData);
+        persistLocal(formattedData);
       }
       setIsLoaded(true);
     };
@@ -185,64 +225,109 @@ export default function Dashboard() {
     initDatabase();
   }, []);
 
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.name) setUserName(data.user.name);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
+
   const currentMonthId = `${selectedYear}-${selectedMonth}`;
   const currentViewEntries = entries.filter(entry => entry.monthId === currentMonthId);
-  const sortedEntries = [...currentViewEntries].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const displayEntries = buildRunningTotals(currentViewEntries);
 
-  let runningM = 0;
-  let runningT = 0;
-  
-  const displayEntries = sortedEntries.map(entry => {
-    const amount = Number(entry.amount) || 0;
-    if (entry.earnedBy === 'Masum') runningM += amount;
-    if (entry.earnedBy === 'Toyeeba') runningT += amount;
-    return { ...entry, runningM, runningT, runningTotal: runningM + runningT };
-  });
+  const runningM = displayEntries.length
+    ? displayEntries[displayEntries.length - 1].runningM
+    : 0;
+  const runningT = displayEntries.length
+    ? displayEntries[displayEntries.length - 1].runningT
+    : 0;
 
   const addRow = async () => {
     const defaultDate = `${currentMonthId}-01`;
-    const newDbEntry = { month_id: currentMonthId, date: defaultDate, earned_from: '', amount: 0, earned_by: '', note: '' };
-    
-    // Save to Cloud instantly
-    const { data } = await supabase.from('income_entries').insert([newDbEntry]).select();
-    
-    if (data && data[0]) {
-      const inserted = data[0];
-      setEntries([
-        ...entries, 
-        { 
-          id: inserted.id, 
-          monthId: inserted.month_id, 
-          date: inserted.date, 
-          earnedFrom: inserted.earned_from, 
-          amount: Number(inserted.amount), 
-          earnedBy: inserted.earned_by, 
-          note: inserted.note 
-        }
-      ]);
+
+    if (usingLocalFallback) {
+      const nextEntries = [
+        ...entries,
+        {
+          id: crypto.randomUUID(),
+          monthId: currentMonthId,
+          date: defaultDate,
+          earnedFrom: '',
+          amount: 0,
+          earnedBy: '' as Entry['earnedBy'],
+          note: '',
+        },
+      ];
+      setEntries(nextEntries);
+      persistLocal(nextEntries);
+      return;
     }
+
+    const newDbEntry = {
+      month_id: currentMonthId,
+      date: defaultDate,
+      earned_from: '',
+      amount: 0,
+      earned_by: '',
+      note: '',
+    };
+
+    const { data, error } = await supabase
+      .from('income_entries')
+      .insert([newDbEntry])
+      .select()
+      .single();
+
+    if (error || !data) {
+      setSyncError(`Could not add row: ${formatDbError(error ?? { message: 'No data returned' })}`);
+      return;
+    }
+
+    const nextEntries = [...entries, rowToEntry(data as Record<string, unknown>)];
+    setEntries(nextEntries);
+    persistLocal(nextEntries);
+    setSyncError(null);
   };
 
   const deleteRow = async (id: string) => {
-    setEntries(entries.filter(entry => entry.id !== id));
-    await supabase.from('income_entries').delete().eq('id', id); // Delete from cloud
+    const previous = entries;
+    const nextEntries = entries.filter((entry) => entry.id !== id);
+    setEntries(nextEntries);
+    persistLocal(nextEntries);
+
+    if (usingLocalFallback) return;
+
+    const { error } = await supabase.from('income_entries').delete().eq('id', id);
+    if (error) {
+      setEntries(previous);
+      persistLocal(previous);
+      setSyncError(`Could not delete row: ${formatDbError(error)}`);
+    } else {
+      setSyncError(null);
+    }
   };
 
-  // Handles updating the local UI instantly while you type
   const handleLocalChange = (id: string, field: keyof Entry, value: string | number) => {
-    setEntries(entries.map(entry => {
-      if (entry.id === id) {
+    setEntries((current) =>
+      current.map((entry) => {
+        if (entry.id !== id) return entry;
         const updatedEntry = { ...entry, [field]: value };
         if (field === 'date' && typeof value === 'string' && value.length >= 7) {
           updatedEntry.monthId = value.substring(0, 7);
         }
         return updatedEntry;
-      }
-      return entry;
-    }));
+      })
+    );
   };
 
-  // Saves to the cloud the moment you click away from the input (onBlur)
   const saveToCloud = async (id: string, field: keyof Entry, value: string | number) => {
     const dbFieldMap: Record<string, string> = {
       earnedFrom: 'earned_from',
@@ -250,15 +335,35 @@ export default function Dashboard() {
       earnedBy: 'earned_by',
       note: 'note',
       date: 'date',
-      monthId: 'month_id'
+      monthId: 'month_id',
     };
 
-    const updatePayload: any = { [dbFieldMap[field]]: value };
+    const updatePayload: Record<string, string | number> = { [dbFieldMap[field]]: value };
     if (field === 'date' && typeof value === 'string' && value.length >= 7) {
       updatePayload.month_id = value.substring(0, 7);
     }
 
-    await supabase.from('income_entries').update(updatePayload).eq('id', id);
+    setEntries((current) => {
+      const nextEntries = current.map((entry) => {
+        if (entry.id !== id) return entry;
+        const updatedEntry = { ...entry, [field]: value };
+        if (field === 'date' && typeof value === 'string' && value.length >= 7) {
+          updatedEntry.monthId = value.substring(0, 7);
+        }
+        return updatedEntry;
+      });
+      persistLocal(nextEntries);
+      return nextEntries;
+    });
+
+    if (usingLocalFallback) return;
+
+    const { error } = await supabase.from('income_entries').update(updatePayload).eq('id', id);
+    if (error) {
+      setSyncError(`Could not save changes: ${formatDbError(error)}`);
+    } else {
+      setSyncError(null);
+    }
   };
 
   if (!isLoaded) return <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center font-semibold text-lg text-blue-600">Syncing with Cloud Database...</div>;
@@ -267,14 +372,50 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 p-8 text-gray-800">
       <div className="max-w-[1400px] mx-auto space-y-8">
         
+        {syncError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-semibold">Database sync issue</p>
+            <p className="mt-1">{syncError}</p>
+            {usingLocalFallback && (
+              <p className="mt-2">
+                Saving locally for now. Run <code className="rounded bg-amber-100 px-1">supabase/schema.sql</code> in the Supabase SQL editor to enable cloud sync.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Navigation / Page Selector */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Income Ledger</h1>
-            <p className="text-gray-500">Organized by Year and Month</p>
+            <p className="text-gray-500">
+              Organized by Year and Month{userName ? ` · Signed in as ${userName}` : ''}
+            </p>
           </div>
           
-          <div className="flex items-center space-x-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => downloadMonthPdf(entries, currentMonthId, selectedYear, selectedMonth)}
+              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              <Download size={16} />
+              <span>Month PDF</span>
+            </button>
+            <button
+              onClick={() => downloadYearPdf(entries, selectedYear)}
+              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              <Download size={16} />
+              <span>Year PDF</span>
+            </button>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </button>
+            <div className="flex items-center space-x-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
             <Calendar className="text-gray-400 ml-2" size={20} />
             <select 
               value={selectedMonth} 
@@ -291,6 +432,7 @@ export default function Dashboard() {
             >
               {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
+            </div>
           </div>
         </div>
 
