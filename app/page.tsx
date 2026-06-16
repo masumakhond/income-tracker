@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar, Download, LogOut, Sparkles } from 'lucide-react';
+import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar, Download, LogOut } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import {
   type Entry,
@@ -45,7 +45,7 @@ function prefilledAsEntries() {
 }
 
 const inputClass =
-  "w-full rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-base md:text-sm text-slate-800 shadow-sm outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-200";
+  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base md:text-sm text-slate-800 shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100";
 
 type DisplayEntry = ReturnType<typeof buildRunningTotals>[number];
 
@@ -72,13 +72,13 @@ function EntryEditor({
         {mobile ? (
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">Entry</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Entry</p>
               <p className="text-sm font-bold text-slate-800">{entry.earnedFrom || "New income"}</p>
             </div>
             <button
               type="button"
               onClick={() => onDelete(entry.id)}
-              className="rounded-xl bg-rose-50 p-2 text-rose-500 transition hover:bg-rose-100"
+              className="rounded-xl bg-red-50 p-2 text-red-400 transition hover:bg-red-100 hover:text-red-600"
               title="Delete row"
             >
               <Trash2 size={18} />
@@ -153,17 +153,17 @@ function EntryEditor({
 
       {mobile ? (
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 p-3 text-center">
-            <p className="text-[10px] font-bold uppercase text-violet-600">Total</p>
-            <p className="mt-1 text-sm font-bold text-violet-900">৳ {running.runningTotal.toLocaleString()}</p>
+          <div className="rounded-xl bg-slate-100/90 p-3 text-center">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Total</p>
+            <p className="mt-1 text-sm font-bold text-slate-800">৳ {running.runningTotal.toLocaleString()}</p>
           </div>
-          <div className="rounded-xl bg-gradient-to-br from-sky-100 to-blue-100 p-3 text-center">
+          <div className="rounded-xl bg-blue-50/90 p-3 text-center">
             <p className="text-[10px] font-bold uppercase text-blue-600">Masum</p>
             <p className="mt-1 text-sm font-bold text-blue-900">৳ {running.runningM.toLocaleString()}</p>
           </div>
-          <div className="rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 p-3 text-center">
-            <p className="text-[10px] font-bold uppercase text-emerald-600">Toyeeba</p>
-            <p className="mt-1 text-sm font-bold text-emerald-900">৳ {running.runningT.toLocaleString()}</p>
+          <div className="rounded-xl bg-teal-50/90 p-3 text-center">
+            <p className="text-[10px] font-bold uppercase text-teal-600">Toyeeba</p>
+            <p className="mt-1 text-sm font-bold text-teal-900">৳ {running.runningT.toLocaleString()}</p>
           </div>
         </div>
       ) : null}
@@ -496,9 +496,9 @@ export default function Dashboard() {
   if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="rounded-3xl border border-white/70 bg-white/90 px-8 py-6 text-center shadow-xl shadow-violet-200/40 backdrop-blur">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-violet-200 border-t-fuchsia-500" />
-          <p className="font-semibold text-violet-900">Syncing with cloud...</p>
+        <div className="rounded-3xl border border-slate-200/80 bg-white/95 px-8 py-6 text-center shadow-lg shadow-slate-200/50 backdrop-blur">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-teal-500" />
+          <p className="font-semibold text-slate-700">Syncing with cloud...</p>
         </div>
       </div>
     );
@@ -522,12 +522,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        <section className="overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-xl shadow-violet-200/30 backdrop-blur">
-          <div className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-4 py-5 text-white sm:px-6 sm:py-6">
+        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-lg shadow-slate-200/40 backdrop-blur">
+          <div className="bg-gradient-to-br from-slate-700 via-slate-600 to-teal-700 px-4 py-5 text-white sm:px-6 sm:py-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="flex items-center gap-1 text-sm font-medium text-white/90">
-                  <Sparkles size={14} />
+                <p className="flex items-center gap-1 text-sm font-medium text-slate-200">
                   Family Income Tracker
                 </p>
                 <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Income Ledger</h1>
@@ -543,7 +542,7 @@ export default function Dashboard() {
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="min-w-0 flex-1 rounded-xl bg-white/95 px-2 py-2 text-sm font-semibold text-violet-900 outline-none"
+                    className="min-w-0 flex-1 rounded-xl bg-white/95 px-2 py-2 text-sm font-semibold text-slate-800 outline-none"
                   >
                     {MONTHS.map((m) => (
                       <option key={m.value} value={m.value}>
@@ -554,7 +553,7 @@ export default function Dashboard() {
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-24 rounded-xl bg-white/95 px-2 py-2 text-sm font-semibold text-violet-900 outline-none"
+                    className="w-24 rounded-xl bg-white/95 px-2 py-2 text-sm font-semibold text-slate-800 outline-none"
                   >
                     {YEARS.map((y) => (
                       <option key={y} value={y}>
@@ -567,14 +566,14 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <button
                     onClick={() => downloadMonthPdf(entries, currentMonthId, selectedYear, selectedMonth)}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-white/95 px-3 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-white"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white/95 px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-white"
                   >
                     <Download size={16} />
                     <span>Month PDF</span>
                   </button>
                   <button
                     onClick={() => downloadYearPdf(entries, selectedYear)}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-white/95 px-3 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-white"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white/95 px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-white"
                   >
                     <Download size={16} />
                     <span>Year PDF</span>
@@ -593,57 +592,57 @@ export default function Dashboard() {
         </section>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 p-5 text-white shadow-lg shadow-blue-300/40">
+          <div className="rounded-2xl bg-gradient-to-br from-slate-500 to-slate-600 p-5 text-white shadow-md shadow-slate-300/40">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-white/20 p-2.5">
                 <Wallet size={22} />
               </div>
               <div>
-                <p className="text-sm font-medium text-blue-100">{monthName} · Masum</p>
+                <p className="text-sm font-medium text-slate-200">{monthName} · Masum</p>
                 <h2 className="text-2xl font-bold">৳ {runningM.toLocaleString()}</h2>
               </div>
             </div>
           </div>
-          <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-lg shadow-emerald-300/40">
+          <div className="rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 p-5 text-white shadow-md shadow-teal-200/40">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-white/20 p-2.5">
                 <Users size={22} />
               </div>
               <div>
-                <p className="text-sm font-medium text-emerald-100">{monthName} · Toyeeba</p>
+                <p className="text-sm font-medium text-teal-100">{monthName} · Toyeeba</p>
                 <h2 className="text-2xl font-bold">৳ {runningT.toLocaleString()}</h2>
               </div>
             </div>
           </div>
-          <div className="rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 p-5 text-white shadow-lg shadow-fuchsia-300/40">
+          <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-slate-600 p-5 text-white shadow-md shadow-indigo-200/40">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-white/20 p-2.5">
                 <TrendingUp size={22} />
               </div>
               <div>
-                <p className="text-sm font-medium text-fuchsia-100">{monthName} · Combined</p>
+                <p className="text-sm font-medium text-indigo-100">{monthName} · Combined</p>
                 <h2 className="text-2xl font-bold">৳ {overallTotal.toLocaleString()}</h2>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-xl shadow-violet-200/30 backdrop-blur">
-          <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 sm:px-6">
-            <h2 className="text-lg font-bold text-violet-900">Monthly Entries</h2>
-            <p className="text-sm text-violet-600">Tap a card on mobile or edit rows on desktop</p>
+        <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-lg shadow-slate-200/40 backdrop-blur">
+          <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-6">
+            <h2 className="text-lg font-bold text-slate-800">Monthly Entries</h2>
+            <p className="text-sm text-slate-500">Tap a card on mobile or edit rows on desktop</p>
           </div>
 
           <div className="space-y-4 p-4 md:hidden">
             {displayEntries.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/50 p-8 text-center text-violet-500">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-8 text-center text-slate-500">
                 No entries for this month. Tap Add New Row to start.
               </div>
             ) : (
               displayEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50/40 p-4 shadow-sm"
+                  className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
                 >
                   <EntryEditor
                     entry={entry}
@@ -669,28 +668,28 @@ export default function Dashboard() {
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[960px] border-collapse text-left">
               <thead>
-                <tr className="bg-gradient-to-r from-violet-100 to-fuchsia-100 text-xs uppercase tracking-wider text-violet-700">
+                <tr className="bg-slate-100/90 text-xs uppercase tracking-wider text-slate-600">
                   <th className="p-3 font-bold">Date</th>
                   <th className="p-3 font-bold">Earned From</th>
                   <th className="p-3 font-bold">Amount (৳)</th>
                   <th className="p-3 font-bold">Earned By</th>
                   <th className="p-3 font-bold">Note</th>
-                  <th className="bg-violet-200/50 p-3 font-bold">Total (M&T)</th>
-                  <th className="bg-sky-200/50 p-3 font-bold">Total (M)</th>
-                  <th className="bg-emerald-200/50 p-3 font-bold">Total (T)</th>
+                  <th className="bg-slate-200/60 p-3 font-bold">Total (M&T)</th>
+                  <th className="bg-blue-100/70 p-3 font-bold">Total (M)</th>
+                  <th className="bg-teal-100/70 p-3 font-bold">Total (T)</th>
                   <th className="p-3 text-center font-bold"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-violet-50">
+              <tbody className="divide-y divide-slate-100">
                 {displayEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-violet-400">
+                    <td colSpan={9} className="p-8 text-center text-slate-400">
                       No entries found for this month. Click Add New Row to start.
                     </td>
                   </tr>
                 ) : (
                   displayEntries.map((entry) => (
-                    <tr key={entry.id} className="group transition hover:bg-violet-50/50">
+                    <tr key={entry.id} className="group transition hover:bg-slate-50/80">
                       <td className="p-2">
                         <input
                           type="date"
@@ -746,19 +745,19 @@ export default function Dashboard() {
                           className={inputClass}
                         />
                       </td>
-                      <td className="bg-violet-50/70 p-3 text-sm font-bold text-violet-700">
+                      <td className="bg-slate-50/80 p-3 text-sm font-bold text-slate-700">
                         ৳ {entry.runningTotal.toLocaleString()}
                       </td>
-                      <td className="bg-sky-50/70 p-3 text-sm font-bold text-blue-700">
+                      <td className="bg-blue-50/70 p-3 text-sm font-bold text-blue-700">
                         ৳ {entry.runningM.toLocaleString()}
                       </td>
-                      <td className="bg-emerald-50/70 p-3 text-sm font-bold text-emerald-700">
+                      <td className="bg-teal-50/70 p-3 text-sm font-bold text-teal-700">
                         ৳ {entry.runningT.toLocaleString()}
                       </td>
                       <td className="p-2 text-center">
                         <button
                           onClick={() => deleteRow(entry.id)}
-                          className="rounded-xl p-2 text-rose-300 transition hover:bg-rose-50 hover:text-rose-500 md:opacity-0 md:group-hover:opacity-100"
+                          className="rounded-xl p-2 text-slate-300 transition hover:bg-red-50 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100"
                           title="Delete Row"
                         >
                           <Trash2 size={18} />
@@ -771,10 +770,10 @@ export default function Dashboard() {
             </table>
           </div>
 
-          <div className="border-t border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4">
+          <div className="border-t border-slate-100 bg-slate-50/80 p-4">
             <button
               onClick={addRow}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-300/30 transition hover:brightness-110 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 px-4 py-3 text-sm font-bold text-white shadow-md shadow-teal-200/40 transition hover:brightness-105 sm:w-auto"
             >
               <Plus size={18} />
               <span>Add New Row</span>
