@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar, Download, LogOut } from 'lucide-react';
+import { Wallet, TrendingUp, Users, Plus, Trash2, Calendar, Download, LogOut, Sparkles } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import {
   type Entry,
@@ -42,6 +42,133 @@ function prefilledAsEntries() {
     id: crypto.randomUUID(),
     earnedBy: entry.earnedBy as Entry['earnedBy'],
   }));
+}
+
+const inputClass =
+  "w-full rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-base md:text-sm text-slate-800 shadow-sm outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-200";
+
+type DisplayEntry = ReturnType<typeof buildRunningTotals>[number];
+
+function EntryEditor({
+  entry,
+  onChange,
+  onBlur,
+  onEarnedByChange,
+  onDelete,
+  running,
+  mobile = false,
+}: {
+  entry: DisplayEntry;
+  onChange: (id: string, field: keyof Entry, value: string | number) => void;
+  onBlur: (id: string, field: keyof Entry, value: string | number) => void;
+  onEarnedByChange: (id: string, value: string) => void;
+  onDelete: (id: string) => void;
+  running: { runningM: number; runningT: number; runningTotal: number };
+  mobile?: boolean;
+}) {
+  return (
+    <>
+      <div className={mobile ? "grid grid-cols-1 gap-3" : "contents"}>
+        {mobile ? (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">Entry</p>
+              <p className="text-sm font-bold text-slate-800">{entry.earnedFrom || "New income"}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onDelete(entry.id)}
+              className="rounded-xl bg-rose-50 p-2 text-rose-500 transition hover:bg-rose-100"
+              title="Delete row"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        ) : null}
+
+        <label className={mobile ? "block" : "contents"}>
+          {mobile ? <span className="mb-1 block text-xs font-semibold text-slate-500">Date</span> : null}
+          <input
+            type="date"
+            value={entry.date || ""}
+            onChange={(e) => onChange(entry.id, "date", e.target.value)}
+            onBlur={(e) => onBlur(entry.id, "date", e.target.value)}
+            className={inputClass}
+          />
+        </label>
+
+        <label className={mobile ? "block" : "contents"}>
+          {mobile ? <span className="mb-1 block text-xs font-semibold text-slate-500">Earned From</span> : null}
+          <input
+            type="text"
+            value={entry.earnedFrom}
+            onChange={(e) => onChange(entry.id, "earnedFrom", e.target.value)}
+            onBlur={(e) => onBlur(entry.id, "earnedFrom", e.target.value)}
+            placeholder="Salary, tuition..."
+            className={inputClass}
+          />
+        </label>
+
+        <div className={mobile ? "grid grid-cols-2 gap-3" : "contents"}>
+          <label className={mobile ? "block" : "contents"}>
+            {mobile ? <span className="mb-1 block text-xs font-semibold text-slate-500">Amount (৳)</span> : null}
+            <input
+              type="number"
+              value={entry.amount || ""}
+              onChange={(e) => onChange(entry.id, "amount", Number(e.target.value))}
+              onBlur={(e) => onBlur(entry.id, "amount", Number(e.target.value))}
+              placeholder="0"
+              className={inputClass}
+            />
+          </label>
+
+          <label className={mobile ? "block" : "contents"}>
+            {mobile ? <span className="mb-1 block text-xs font-semibold text-slate-500">Earned By</span> : null}
+            <select
+              value={entry.earnedBy}
+              onChange={(e) => onEarnedByChange(entry.id, e.target.value)}
+              className={`${inputClass} bg-white`}
+            >
+              <option value="" disabled>
+                Select...
+              </option>
+              <option value="Masum">Masum</option>
+              <option value="Toyeeba">Toyeeba</option>
+            </select>
+          </label>
+        </div>
+
+        <label className={mobile ? "block" : "contents"}>
+          {mobile ? <span className="mb-1 block text-xs font-semibold text-slate-500">Note</span> : null}
+          <input
+            type="text"
+            value={entry.note}
+            onChange={(e) => onChange(entry.id, "note", e.target.value)}
+            onBlur={(e) => onBlur(entry.id, "note", e.target.value)}
+            placeholder="Notes..."
+            className={inputClass}
+          />
+        </label>
+      </div>
+
+      {mobile ? (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 p-3 text-center">
+            <p className="text-[10px] font-bold uppercase text-violet-600">Total</p>
+            <p className="mt-1 text-sm font-bold text-violet-900">৳ {running.runningTotal.toLocaleString()}</p>
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-sky-100 to-blue-100 p-3 text-center">
+            <p className="text-[10px] font-bold uppercase text-blue-600">Masum</p>
+            <p className="mt-1 text-sm font-bold text-blue-900">৳ {running.runningM.toLocaleString()}</p>
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 p-3 text-center">
+            <p className="text-[10px] font-bold uppercase text-emerald-600">Toyeeba</p>
+            <p className="mt-1 text-sm font-bold text-emerald-900">৳ {running.runningT.toLocaleString()}</p>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 const PREFILLED_DATA = [
@@ -366,14 +493,25 @@ export default function Dashboard() {
     }
   };
 
-  if (!isLoaded) return <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center font-semibold text-lg text-blue-600">Syncing with Cloud Database...</div>;
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-3xl border border-white/70 bg-white/90 px-8 py-6 text-center shadow-xl shadow-violet-200/40 backdrop-blur">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-violet-200 border-t-fuchsia-500" />
+          <p className="font-semibold text-violet-900">Syncing with cloud...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const monthName = MONTHS.find((m) => m.value === selectedMonth)?.label ?? selectedMonth;
+  const overallTotal = runningM + runningT;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 text-gray-800">
-      <div className="max-w-[1400px] mx-auto space-y-8">
-        
+    <div className="min-h-screen px-3 py-4 text-slate-800 sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-[1400px] space-y-5 sm:space-y-6">
         {syncError && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm">
             <p className="font-semibold">Database sync issue</p>
             <p className="mt-1">{syncError}</p>
             {usingLocalFallback && (
@@ -384,149 +522,216 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Navigation / Page Selector */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Income Ledger</h1>
-            <p className="text-gray-500">
-              Organized by Year and Month{userName ? ` · Signed in as ${userName}` : ''}
-            </p>
+        <section className="overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-xl shadow-violet-200/30 backdrop-blur">
+          <div className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-4 py-5 text-white sm:px-6 sm:py-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="flex items-center gap-1 text-sm font-medium text-white/90">
+                  <Sparkles size={14} />
+                  Family Income Tracker
+                </p>
+                <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Income Ledger</h1>
+                <p className="mt-1 text-sm text-white/85">
+                  {monthName} {selectedYear}
+                  {userName ? ` · ${userName}` : ""}
+                </p>
+              </div>
+
+              <div className="flex w-full flex-col gap-3 sm:w-auto">
+                <div className="flex items-center gap-2 rounded-2xl bg-white/15 p-2 backdrop-blur">
+                  <Calendar className="ml-1 shrink-0 text-white/90" size={18} />
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="min-w-0 flex-1 rounded-xl bg-white/95 px-2 py-2 text-sm font-semibold text-violet-900 outline-none"
+                  >
+                    {MONTHS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-24 rounded-xl bg-white/95 px-2 py-2 text-sm font-semibold text-violet-900 outline-none"
+                  >
+                    {YEARS.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <button
+                    onClick={() => downloadMonthPdf(entries, currentMonthId, selectedYear, selectedMonth)}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white/95 px-3 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-white"
+                  >
+                    <Download size={16} />
+                    <span>Month PDF</span>
+                  </button>
+                  <button
+                    onClick={() => downloadYearPdf(entries, selectedYear)}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white/95 px-3 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-white"
+                  >
+                    <Download size={16} />
+                    <span>Year PDF</span>
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 sm:col-span-1"
+                  >
+                    <LogOut size={16} />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => downloadMonthPdf(entries, currentMonthId, selectedYear, selectedMonth)}
-              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              <Download size={16} />
-              <span>Month PDF</span>
-            </button>
-            <button
-              onClick={() => downloadYearPdf(entries, selectedYear)}
-              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              <Download size={16} />
-              <span>Year PDF</span>
-            </button>
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              <LogOut size={16} />
-              <span>Logout</span>
-            </button>
-            <div className="flex items-center space-x-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
-            <Calendar className="text-gray-400 ml-2" size={20} />
-            <select 
-              value={selectedMonth} 
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent font-medium text-lg focus:outline-none cursor-pointer"
-            >
-              {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-            <span className="text-gray-300">/</span>
-            <select 
-              value={selectedYear} 
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent font-medium text-lg focus:outline-none cursor-pointer pr-2"
-            >
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+        </section>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 p-5 text-white shadow-lg shadow-blue-300/40">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-white/20 p-2.5">
+                <Wallet size={22} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-100">{monthName} · Masum</p>
+                <h2 className="text-2xl font-bold">৳ {runningM.toLocaleString()}</h2>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-lg shadow-emerald-300/40">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-white/20 p-2.5">
+                <Users size={22} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-emerald-100">{monthName} · Toyeeba</p>
+                <h2 className="text-2xl font-bold">৳ {runningT.toLocaleString()}</h2>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 p-5 text-white shadow-lg shadow-fuchsia-300/40">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-white/20 p-2.5">
+                <TrendingUp size={22} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-fuchsia-100">{monthName} · Combined</p>
+                <h2 className="text-2xl font-bold">৳ {overallTotal.toLocaleString()}</h2>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Monthly Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><Wallet size={24} /></div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">{MONTHS.find(m => m.value === selectedMonth)?.label} Total - M</p>
-              <h2 className="text-2xl font-bold">৳ {runningM.toLocaleString()}</h2>
-            </div>
+        <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-xl shadow-violet-200/30 backdrop-blur">
+          <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 sm:px-6">
+            <h2 className="text-lg font-bold text-violet-900">Monthly Entries</h2>
+            <p className="text-sm text-violet-600">Tap a card on mobile or edit rows on desktop</p>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-            <div className="p-3 bg-green-100 text-green-600 rounded-lg"><Users size={24} /></div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">{MONTHS.find(m => m.value === selectedMonth)?.label} Total - T</p>
-              <h2 className="text-2xl font-bold">৳ {runningT.toLocaleString()}</h2>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-            <div className="p-3 bg-purple-100 text-purple-600 rounded-lg"><TrendingUp size={24} /></div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">{MONTHS.find(m => m.value === selectedMonth)?.label} Overall Total</p>
-              <h2 className="text-2xl font-bold">৳ {(runningM + runningT).toLocaleString()}</h2>
-            </div>
-          </div>
-        </div>
 
-        {/* Spreadsheet Data Entry Layout */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+          <div className="space-y-4 p-4 md:hidden">
+            {displayEntries.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/50 p-8 text-center text-violet-500">
+                No entries for this month. Tap Add New Row to start.
+              </div>
+            ) : (
+              displayEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50/40 p-4 shadow-sm"
+                >
+                  <EntryEditor
+                    entry={entry}
+                    mobile
+                    running={{
+                      runningM: entry.runningM,
+                      runningT: entry.runningT,
+                      runningTotal: entry.runningTotal,
+                    }}
+                    onChange={handleLocalChange}
+                    onBlur={saveToCloud}
+                    onEarnedByChange={(id, value) => {
+                      handleLocalChange(id, "earnedBy", value);
+                      saveToCloud(id, "earnedBy", value);
+                    }}
+                    onDelete={deleteRow}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[960px] border-collapse text-left">
               <thead>
-                <tr className="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider">
-                  <th className="p-3 border-b font-semibold w-40">Date</th>
-                  <th className="p-3 border-b font-semibold min-w-[200px]">Earned From</th>
-                  <th className="p-3 border-b font-semibold w-32">Amount (৳)</th>
-                  <th className="p-3 border-b font-semibold w-32">Earned By</th>
-                  <th className="p-3 border-b font-semibold min-w-[200px]">Note</th>
-                  <th className="p-3 border-b font-semibold w-32 bg-purple-50">Total (M&T)</th>
-                  <th className="p-3 border-b font-semibold w-32 bg-blue-50">Total (M)</th>
-                  <th className="p-3 border-b font-semibold w-32 bg-green-50">Total (T)</th>
-                  <th className="p-3 border-b font-semibold w-16 text-center"></th>
+                <tr className="bg-gradient-to-r from-violet-100 to-fuchsia-100 text-xs uppercase tracking-wider text-violet-700">
+                  <th className="p-3 font-bold">Date</th>
+                  <th className="p-3 font-bold">Earned From</th>
+                  <th className="p-3 font-bold">Amount (৳)</th>
+                  <th className="p-3 font-bold">Earned By</th>
+                  <th className="p-3 font-bold">Note</th>
+                  <th className="bg-violet-200/50 p-3 font-bold">Total (M&T)</th>
+                  <th className="bg-sky-200/50 p-3 font-bold">Total (M)</th>
+                  <th className="bg-emerald-200/50 p-3 font-bold">Total (T)</th>
+                  <th className="p-3 text-center font-bold"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-violet-50">
                 {displayEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-gray-400">
-                      No entries found for this month. Click "Add New Row" to start.
+                    <td colSpan={9} className="p-8 text-center text-violet-400">
+                      No entries found for this month. Click Add New Row to start.
                     </td>
                   </tr>
                 ) : (
                   displayEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50 transition-colors group">
+                    <tr key={entry.id} className="group transition hover:bg-violet-50/50">
                       <td className="p-2">
                         <input
                           type="date"
-                          value={entry.date || ''}
-                          onChange={(e) => handleLocalChange(entry.id, 'date', e.target.value)}
-                          onBlur={(e) => saveToCloud(entry.id, 'date', e.target.value)}
-                          className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          value={entry.date || ""}
+                          onChange={(e) => handleLocalChange(entry.id, "date", e.target.value)}
+                          onBlur={(e) => saveToCloud(entry.id, "date", e.target.value)}
+                          className={inputClass}
                         />
                       </td>
                       <td className="p-2">
                         <input
                           type="text"
                           value={entry.earnedFrom}
-                          onChange={(e) => handleLocalChange(entry.id, 'earnedFrom', e.target.value)}
-                          onBlur={(e) => saveToCloud(entry.id, 'earnedFrom', e.target.value)}
+                          onChange={(e) => handleLocalChange(entry.id, "earnedFrom", e.target.value)}
+                          onBlur={(e) => saveToCloud(entry.id, "earnedFrom", e.target.value)}
                           placeholder="Project name..."
-                          className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          className={inputClass}
                         />
                       </td>
                       <td className="p-2">
                         <input
                           type="number"
-                          value={entry.amount || ''}
-                          onChange={(e) => handleLocalChange(entry.id, 'amount', Number(e.target.value))}
-                          onBlur={(e) => saveToCloud(entry.id, 'amount', Number(e.target.value))}
+                          value={entry.amount || ""}
+                          onChange={(e) => handleLocalChange(entry.id, "amount", Number(e.target.value))}
+                          onBlur={(e) => saveToCloud(entry.id, "amount", Number(e.target.value))}
                           placeholder="0"
-                          className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          className={inputClass}
                         />
                       </td>
                       <td className="p-2">
                         <select
                           value={entry.earnedBy}
                           onChange={(e) => {
-                            handleLocalChange(entry.id, 'earnedBy', e.target.value);
-                            saveToCloud(entry.id, 'earnedBy', e.target.value);
+                            handleLocalChange(entry.id, "earnedBy", e.target.value);
+                            saveToCloud(entry.id, "earnedBy", e.target.value);
                           }}
-                          className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                          className={`${inputClass} bg-white`}
                         >
-                          <option value="" disabled>Select...</option>
+                          <option value="" disabled>
+                            Select...
+                          </option>
                           <option value="Masum">Masum</option>
                           <option value="Toyeeba">Toyeeba</option>
                         </select>
@@ -535,19 +740,25 @@ export default function Dashboard() {
                         <input
                           type="text"
                           value={entry.note}
-                          onChange={(e) => handleLocalChange(entry.id, 'note', e.target.value)}
-                          onBlur={(e) => saveToCloud(entry.id, 'note', e.target.value)}
+                          onChange={(e) => handleLocalChange(entry.id, "note", e.target.value)}
+                          onBlur={(e) => saveToCloud(entry.id, "note", e.target.value)}
                           placeholder="Notes..."
-                          className="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          className={inputClass}
                         />
                       </td>
-                      <td className="p-3 bg-purple-50/50 font-medium text-purple-700">৳ {entry.runningTotal.toLocaleString()}</td>
-                      <td className="p-3 bg-blue-50/50 font-medium text-blue-700">৳ {entry.runningM.toLocaleString()}</td>
-                      <td className="p-3 bg-green-50/50 font-medium text-green-700">৳ {entry.runningT.toLocaleString()}</td>
+                      <td className="bg-violet-50/70 p-3 text-sm font-bold text-violet-700">
+                        ৳ {entry.runningTotal.toLocaleString()}
+                      </td>
+                      <td className="bg-sky-50/70 p-3 text-sm font-bold text-blue-700">
+                        ৳ {entry.runningM.toLocaleString()}
+                      </td>
+                      <td className="bg-emerald-50/70 p-3 text-sm font-bold text-emerald-700">
+                        ৳ {entry.runningT.toLocaleString()}
+                      </td>
                       <td className="p-2 text-center">
-                        <button 
+                        <button
                           onClick={() => deleteRow(entry.id)}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          className="rounded-xl p-2 text-rose-300 transition hover:bg-rose-50 hover:text-rose-500 md:opacity-0 md:group-hover:opacity-100"
                           title="Delete Row"
                         >
                           <Trash2 size={18} />
@@ -559,17 +770,17 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 bg-gray-50 border-t border-gray-100">
-            <button 
+
+          <div className="border-t border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4">
+            <button
               onClick={addRow}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-300/30 transition hover:brightness-110 sm:w-auto"
             >
               <Plus size={18} />
               <span>Add New Row</span>
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

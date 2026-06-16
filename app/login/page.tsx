@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet } from "lucide-react";
+import { Sparkles, Wallet } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,45 +35,50 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-lg bg-blue-100 p-3 text-blue-600">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Income Ledger</h1>
-            <p className="text-sm text-gray-500">Admin sign in</p>
+    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-2xl shadow-violet-200/50 backdrop-blur">
+        <div className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 px-6 py-8 text-white">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-white/20 p-3 backdrop-blur">
+              <Wallet size={28} />
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-sm font-medium text-white/90">
+                <Sparkles size={14} />
+                Family Finance
+              </p>
+              <h1 className="text-2xl font-bold">Income Ledger</h1>
+            </div>
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4 p-6">
           <label className="block">
-            <span className="text-sm font-medium text-gray-600">Username</span>
+            <span className="text-sm font-semibold text-violet-900">Username</span>
             <input
               type="text"
               required
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="mt-1.5 w-full rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-3 text-base outline-none transition focus:border-fuchsia-400 focus:bg-white focus:ring-2 focus:ring-fuchsia-200"
               placeholder="masumbillahakhond"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-gray-600">Password</span>
+            <span className="text-sm font-semibold text-violet-900">Password</span>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="mt-1.5 w-full rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-3 text-base outline-none transition focus:border-fuchsia-400 focus:bg-white focus:ring-2 focus:ring-fuchsia-200"
             />
           </label>
 
           {error ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {error}
             </p>
           ) : null}
@@ -81,7 +86,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-fuchsia-300/40 transition hover:brightness-110 disabled:opacity-60"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
