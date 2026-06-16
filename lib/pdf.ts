@@ -2,8 +2,29 @@ import type { Entry } from "./income";
 import { MONTHS, buildRunningTotals, monthLabel, summarizeEntries } from "./income";
 
 function formatMoney(value: number) {
-  return `৳ ${value.toLocaleString()}`;
+  return `Tk ${Math.round(value).toLocaleString("en-US")}`;
 }
+
+const tableDefaults = {
+  styles: {
+    fontSize: 8,
+    cellPadding: 2,
+    overflow: "linebreak" as const,
+    lineColor: [220, 220, 220] as [number, number, number],
+    lineWidth: 0.1,
+  },
+  headStyles: {
+    fillColor: [37, 99, 235] as [number, number, number],
+    textColor: 255,
+    fontStyle: "bold" as const,
+  },
+  amountColumnStyles: {
+    2: { halign: "right" as const, cellWidth: 24 },
+    5: { halign: "right" as const, cellWidth: 26 },
+    6: { halign: "right" as const, cellWidth: 24 },
+    7: { halign: "right" as const, cellWidth: 24 },
+  },
+};
 
 export async function downloadMonthPdf(
   entries: Entry[],
@@ -20,10 +41,11 @@ export async function downloadMonthPdf(
   const monthName = MONTHS.find((item) => item.value === month)?.label ?? month;
 
   const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(16);
-  doc.text(`Income Ledger — ${monthName} ${year}`, 14, 16);
+  doc.text(`Income Ledger - ${monthName} ${year}`, 14, 16);
   doc.setFontSize(10);
-  doc.text(`Generated ${new Date().toLocaleString()}`, 14, 23);
+  doc.text(`Generated ${new Date().toLocaleString("en-US")}`, 14, 23);
 
   autoTable(doc, {
     startY: 28,
@@ -49,8 +71,14 @@ export async function downloadMonthPdf(
       formatMoney(entry.runningM),
       formatMoney(entry.runningT),
     ]),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [37, 99, 235] },
+    styles: tableDefaults.styles,
+    headStyles: tableDefaults.headStyles,
+    columnStyles: {
+      0: { cellWidth: 24 },
+      1: { cellWidth: 42 },
+      ...tableDefaults.amountColumnStyles,
+      4: { cellWidth: 36 },
+    },
   });
 
   const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
@@ -73,10 +101,11 @@ export async function downloadYearPdf(entries: Entry[], year: string) {
   const monthIds = Array.from(new Set(yearEntries.map((entry) => entry.monthId))).sort();
 
   const doc = new jsPDF();
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(16);
-  doc.text(`Income Ledger — Year ${year}`, 14, 16);
+  doc.text(`Income Ledger - Year ${year}`, 14, 16);
   doc.setFontSize(10);
-  doc.text(`Generated ${new Date().toLocaleString()}`, 14, 23);
+  doc.text(`Generated ${new Date().toLocaleString("en-US")}`, 14, 23);
 
   let startY = 30;
   let yearMasum = 0;
@@ -102,8 +131,19 @@ export async function downloadYearPdf(entries: Entry[], year: string) {
         entry.earnedBy,
         entry.note,
       ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [22, 163, 74] },
+      styles: tableDefaults.styles,
+      headStyles: {
+        fillColor: [22, 163, 74] as [number, number, number],
+        textColor: 255,
+        fontStyle: "bold" as const,
+      },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 52 },
+        2: { halign: "right", cellWidth: 26 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 40 },
+      },
     });
 
     const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
@@ -112,7 +152,7 @@ export async function downloadYearPdf(entries: Entry[], year: string) {
 
     doc.setFontSize(9);
     doc.text(
-      `Month total — Masum: ${formatMoney(totals.masum)} | Toyeeba: ${formatMoney(totals.toyeeba)} | Overall: ${formatMoney(totals.total)}`,
+      `Month total - Masum: ${formatMoney(totals.masum)} | Toyeeba: ${formatMoney(totals.toyeeba)} | Overall: ${formatMoney(totals.total)}`,
       14,
       startY
     );
@@ -126,7 +166,7 @@ export async function downloadYearPdf(entries: Entry[], year: string) {
 
   doc.setFontSize(12);
   doc.text(
-    `Year ${year} total — Masum: ${formatMoney(yearMasum)} | Toyeeba: ${formatMoney(yearToyeeba)} | Overall: ${formatMoney(yearMasum + yearToyeeba)}`,
+    `Year ${year} total - Masum: ${formatMoney(yearMasum)} | Toyeeba: ${formatMoney(yearToyeeba)} | Overall: ${formatMoney(yearMasum + yearToyeeba)}`,
     14,
     Math.min(startY + 4, 285)
   );
